@@ -1,3 +1,4 @@
+# Copyright (c) 2017 Ian Daniher <itdaniher@gmail.com> (hacker)
 # Copyright (c) 2012 Terence Honles <terence@honles.com> (maintainer)
 # Copyright (c) 2008 Giorgos Verigakis <verigak@gmail.com> (author)
 #
@@ -13,33 +14,16 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-from __future__ import print_function, absolute_import, division
-
 from ctypes import *
 from ctypes.util import find_library
-from errno import *
-from os import strerror
-from platform import machine, system
-from signal import signal, SIGINT, SIG_DFL
-from stat import S_IFDIR
-from traceback import print_exc
-
+import errno
+import os
+import platform
+import signal
+import stat
+import traceback
 import logging
-
-try:
-    from functools import partial
-except ImportError:
-    # http://docs.python.org/library/functools.html#functools.partial
-    def partial(func, *args, **keywords):
-        def newfunc(*fargs, **fkeywords):
-            newkeywords = keywords.copy()
-            newkeywords.update(fkeywords)
-            return func(*(args + fargs), **newkeywords)
-
-        newfunc.func = func
-        newfunc.args = args
-        newfunc.keywords = keywords
-        return newfunc
+import functools
 
 try:
     basestring
@@ -55,8 +39,8 @@ class c_utimbuf(Structure):
 class c_stat(Structure):
     pass    # Platform dependent
 
-_system = system()
-_machine = machine()
+_system = platform.system()
+_machine = platform.machine()
 
 if _system == 'Darwin':
     _libiconv = CDLL(find_library('iconv'), RTLD_GLOBAL) # libfuse dependency
@@ -402,7 +386,7 @@ def fuse_get_context():
 
 class FuseOSError(OSError):
     def __init__(self, errno):
-        super(FuseOSError, self).__init__(errno, strerror(errno))
+        super(FuseOSError, self).__init__(errno, os.strerror(errno))
 
 
 class FUSE(object):
@@ -458,20 +442,20 @@ class FUSE(object):
             # getattr(operations, name) above but are dynamically
             # invoked using self.operations(name)
             if hasattr(prototype, 'argtypes'):
-                val = prototype(partial(self._wrapper, getattr(self, name)))
+                val = prototype(functools.partial(self._wrapper, getattr(self, name)))
 
             setattr(fuse_ops, name, val)
 
         try:
-            old_handler = signal(SIGINT, SIG_DFL)
+            old_handler = signal.signal(signal.SIGINT, signal.SIG_DFL)
         except ValueError:
-            old_handler = SIG_DFL
+            old_handler = signal.SIG_DFL
 
         err = _libfuse.fuse_main_real(len(args), argv, pointer(fuse_ops),
                                       sizeof(fuse_ops), None)
 
         try:
-            signal(SIGINT, old_handler)
+            signal.signal(signal.SIGINT, old_handler)
         except ValueError:
             pass
 
@@ -496,7 +480,7 @@ class FUSE(object):
         except OSError as e:
             return -(e.errno or EFAULT)
         except:
-            print_exc()
+            traceback.print_exc()
             return -EFAULT
 
     def _decode_optional_path(self, path):
@@ -805,10 +789,10 @@ class Operations(object):
     bmap = None
 
     def chmod(self, path, mode):
-        raise FuseOSError(EROFS)
+        raise FuseOSError(errno.EROFS)
 
     def chown(self, path, uid, gid):
-        raise FuseOSError(EROFS)
+        raise FuseOSError(errno.EROFS)
 
     def create(self, path, mode, fi=None):
         '''
@@ -819,7 +803,7 @@ class Operations(object):
         and return 0.
         '''
 
-        raise FuseOSError(EROFS)
+        raise FuseOSError(errno.EROFS)
 
     def destroy(self, path):
         'Called on filesystem destruction. Path is always /'
@@ -848,11 +832,11 @@ class Operations(object):
         '''
 
         if path != '/':
-            raise FuseOSError(ENOENT)
-        return dict(st_mode=(S_IFDIR | 0o755), st_nlink=2)
+            raise FuseOSError(errno.ENOENT)
+        return dict(st_mode=(stat.S_IFDIR | 0o755), st_nlink=2)
 
     def getxattr(self, path, name, position=0):
-        raise FuseOSError(ENOTSUP)
+        raise FuseOSError(errno.ENOTSUP)
 
     def init(self, path):
         '''
@@ -866,7 +850,7 @@ class Operations(object):
     def link(self, target, source):
         'creates a hard link `target -> source` (e.g. ln source target)'
 
-        raise FuseOSError(EROFS)
+        raise FuseOSError(errno.EROFS)
 
     def listxattr(self, path):
         return []
@@ -874,10 +858,10 @@ class Operations(object):
     lock = None
 
     def mkdir(self, path, mode):
-        raise FuseOSError(EROFS)
+        raise FuseOSError(errno.EROFS)
 
     def mknod(self, path, mode, dev):
-        raise FuseOSError(EROFS)
+        raise FuseOSError(errno.EROFS)
 
     def open(self, path, flags):
         '''
@@ -911,7 +895,7 @@ class Operations(object):
         return ['.', '..']
 
     def readlink(self, path):
-        raise FuseOSError(ENOENT)
+        raise FuseOSError(errno.ENOENT)
 
     def release(self, path, fh):
         return 0
@@ -920,16 +904,16 @@ class Operations(object):
         return 0
 
     def removexattr(self, path, name):
-        raise FuseOSError(ENOTSUP)
+        raise FuseOSError(errno.ENOTSUP)
 
     def rename(self, old, new):
-        raise FuseOSError(EROFS)
+        raise FuseOSError(errno.EROFS)
 
     def rmdir(self, path):
-        raise FuseOSError(EROFS)
+        raise FuseOSError(errno.EROFS)
 
     def setxattr(self, path, name, value, options, position=0):
-        raise FuseOSError(ENOTSUP)
+        raise FuseOSError(errno.ENOTSUP)
 
     def statfs(self, path):
         '''
@@ -945,13 +929,13 @@ class Operations(object):
     def symlink(self, target, source):
         'creates a symlink `target -> source` (e.g. ln -s source target)'
 
-        raise FuseOSError(EROFS)
+        raise FuseOSError(errno.EROFS)
 
     def truncate(self, path, length, fh=None):
-        raise FuseOSError(EROFS)
+        raise FuseOSError(errno.EROFS)
 
     def unlink(self, path):
-        raise FuseOSError(EROFS)
+        raise FuseOSError(errno.EROFS)
 
     def utimens(self, path, times=None):
         'Times is a (atime, mtime) tuple. If None use current time.'
@@ -959,7 +943,7 @@ class Operations(object):
         return 0
 
     def write(self, path, data, offset, fh):
-        raise FuseOSError(EROFS)
+        raise FuseOSError(errno.EROFS)
 
 
 class LoggingMixIn:
