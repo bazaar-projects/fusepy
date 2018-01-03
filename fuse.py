@@ -478,10 +478,10 @@ class FUSE(object):
         try:
             return func(*args, **kwargs) or 0
         except OSError as e:
-            return -(e.errno or EFAULT)
+            return -(e.errno or errno.EFAULT)
         except:
             traceback.print_exc()
-            return -EFAULT
+            return -errno.EFAULT
 
     def _decode_optional_path(self, path):
         # NB: this method is intended for fuse operations that
@@ -780,7 +780,7 @@ class Operations(object):
 
     def __call__(self, op, *args):
         if not hasattr(self, op):
-            raise FuseOSError(EFAULT)
+            raise FuseOSError(errno.EFAULT)
         return getattr(self, op)(*args)
 
     def access(self, path, amode):
