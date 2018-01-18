@@ -25,11 +25,6 @@ import traceback
 import logging
 import functools
 
-try:
-    basestring
-except NameError:
-    basestring = str
-
 class c_timespec(Structure):
     _fields_ = [('tv_sec', c_long), ('tv_nsec', c_long)]
 
@@ -676,7 +671,7 @@ class FUSE(object):
         for item in self.operations('readdir', self._decode_optional_path(path),
                                                fip.contents.fh):
 
-            if isinstance(item, basestring):
+            if isinstance(item, str):
                 name, st, offset = item, None, 0
             else:
                 name, attrs, offset = item
